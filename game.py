@@ -3,11 +3,11 @@ import sys
 import pygame
 from pygame.locals import *
 
-from math import cos, sin, pi
+from math import cos, sin, pi, radians
 
 from random import randint, random
 
-from ai import match_ball, smooth_match, match_w_random, move_to_collision
+from ai import match_ball, smooth_match, match_w_random, move_to_collision, cheater
 
 width, height = 1000, 700
 
@@ -17,9 +17,12 @@ ball_size = 25
 
 ball_x,ball_y=ball_start-(ball_size/2),height/2
 
-base_ball_speed=0.5
-ball_speed=0.5
+base_ball_speed=.5
+#.5
+ball_speed=base_ball_speed
 ball_speed_x, ball_speed_y = -ball_speed,ball_speed
+speed_increase=0.25
+#.15
 
 last_impact=width/2
 impact_sx,impact_sy=ball_speed_x,ball_speed_y
@@ -45,8 +48,8 @@ def update_ball(dt):
     ball_center=ball_y+(ball_size/2)
     if ball_x <= paddle_width:
         if ball_center > paddle1_pos and ball_center < paddle1_pos+paddle1_length:
+            ball_speed+=speed_increase*random()
             ball_speed_x,ball_speed_y = calc_new_speed(ball_y,paddle1_pos,paddle1_length)
-            ball_speed+=0.1
             last_impact=ball_y
             impact_sx,impact_sy=ball_speed_x,ball_speed_y
         elif ball_x <= paddle_width-grace:
@@ -57,8 +60,8 @@ def update_ball(dt):
     # player 2 collision
     if ball_x >= width-(paddle_width*2):
         if ball_center > paddle2_pos and ball_center < paddle2_pos+paddle1_length:
+            ball_speed+=speed_increase*random()
             ball_speed_x,ball_speed_y = calc_new_speed(ball_y,paddle2_pos,paddle2_length,-1)
-            ball_speed+=0.1
             last_impact=ball_y
             impact_sx,impact_sy=ball_speed_x,ball_speed_y
         elif ball_x >= width-(paddle_width*2)+grace:
@@ -67,7 +70,7 @@ def update_ball(dt):
             p1_wins+=1
     
     if won:
-        ball_x,ball_y=ball_start-(ball_size/2),random()*height
+        ball_x,ball_y=ball_start-(ball_size/2),(0.8*random()+0.1)*height
         ball_speed=base_ball_speed
         ball_speed_x,ball_speed_y=((randint(0,1)*2)-1)*ball_speed,0
         paddle1_pos=(height-paddle1_length)/2
@@ -79,7 +82,7 @@ def update_ball(dt):
         ball_x+=ball_speed_x*dt
         ball_y+=ball_speed_y*dt
 
-max_bounce_angle=(5*pi)/12
+max_bounce_angle=radians(75)
 def calc_new_speed(ball_y,paddle_y,paddle_height,x_mult=1):
     center_y=paddle_y+(paddle_height/2)
     relative_intersect=center_y-ball_y 
@@ -98,6 +101,7 @@ paddle2_length=200
 paddle2_pos=(height-paddle2_length)/2
 
 paddle_speed=.4
+# .4
 
 size_decrease = 10+(ball_size/2) #so the paddle seems smaller then it actually is
 double_size_decrease=size_decrease*2
@@ -114,8 +118,13 @@ screen = pygame.display.set_mode((width, height))
 
 getTicksLastFrame=0
 
-p1_bot=True
+p1_bot=False
 p2_bot=True
+ai1=2
+ai2=1
+
+ai1_center=False
+ai2_center=True
 
 p1_wins=0
 p2_wins=0
@@ -157,15 +166,33 @@ while True:
         update_ball(dt)
     else:
         frame_cooldown-=1
-    pygame.display.set_caption(f"Score: {p1_wins} to {p2_wins}")
+    pygame.display.set_caption(f"Score: {p1_wins} to {p2_wins}, {round(fpsClock.get_fps()*100)/100} fps")
     
     # basic ai
     if p1_bot:
         if ball_speed_x <= 0:
-            paddle1_pos+=match_ball(ball_y,paddle1_pos,paddle1_length,height,paddle_speed)*dt
+            if ai1 == 1:
+                paddle1_pos+=move_to_collision(paddle1_pos,paddle1_length,paddle_speed,last_impact,-impact_sx,impact_sy,width-(paddle_width*0.75) if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
+            elif ai1 == 2:
+                paddle1_pos+=match_ball(ball_y,paddle1_pos,paddle1_length,height,paddle_speed)*dt
+            elif ai1 == 3:
+                paddle1_pos+=match_w_random(ball_y,paddle1_pos,paddle1_length,height,paddle_speed)*dt
+            elif ai1 == 4:
+                paddle1_pos+=cheater(paddle1_pos+(paddle1_length/2),ball_y)
+        elif ai1_center:
+            paddle1_pos+=match_ball(height/2,paddle1_pos,paddle1_length,height,paddle_speed)*dt
     if p2_bot:
         if ball_speed_x >= 0:
-            paddle2_pos+=move_to_collision(paddle2_pos,paddle2_length,paddle_speed,last_impact,impact_sx,impact_sy,width-(paddle_width/2) if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
+            if ai2 == 1:
+                paddle2_pos+=move_to_collision(paddle2_pos,paddle2_length,paddle_speed,last_impact,impact_sx,impact_sy,width-(paddle_width*0.75) if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
+            elif ai2 == 2:
+                paddle2_pos+=match_ball(ball_y,paddle2_pos,paddle2_length,height,paddle_speed)*dt
+            elif ai2 == 3:
+                paddle2_pos+=match_w_random(ball_y,paddle2_pos,paddle2_length,height,paddle_speed)*dt
+            elif ai2 == 4:
+                paddle2_pos+=cheater(paddle2_pos+(paddle2_length/2),ball_y)
+        elif ai2_center:
+            paddle2_pos+=match_ball(height/2,paddle2_pos,paddle2_length,height,paddle_speed)*dt
     
     # draw dashed line
     for segment in dashed_line:

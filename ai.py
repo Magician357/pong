@@ -65,3 +65,6 @@ def move_to_collision(paddle_pos,paddle_length,paddle_speed,impact_y,x_speed,y_s
     elif difference > threshold and paddle_pos < height-paddle_length:
         return paddle_speed
     return 0
+
+def cheater(paddle_pos,ball_pos):
+    return 0.5*(ball_pos-paddle_pos)
