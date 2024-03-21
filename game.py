@@ -5,21 +5,34 @@ from pygame.locals import *
 
 from math import cos, sin, pi
 
-from random import randint
+from random import randint, random
 
-ball_x,ball_y=300,300
+from ai import match_ball, smooth_match, match_w_random, move_to_collision
+
+width, height = 1000, 700
+
+ball_start=width/2
 
 ball_size = 25
 
+ball_x,ball_y=ball_start-(ball_size/2),height/2
+
+base_ball_speed=0.5
 ball_speed=0.5
-ball_speed_x, ball_speed_y = ball_speed,ball_speed
+ball_speed_x, ball_speed_y = -ball_speed,ball_speed
+
+last_impact=width/2
+impact_sx,impact_sy=ball_speed_x,ball_speed_y
 
 frame_cooldown=30
 def update_ball(dt):
     global ball_x,ball_y
-    global ball_speed_x,ball_speed_y
+    global ball_speed_x,ball_speed_y,ball_speed
     global p1_wins,p2_wins
     global frame_cooldown
+    global paddle1_pos,paddle2_pos
+    global last_impact
+    global impact_sx,impact_sy
     
     # detect vertical collisions
     if ball_y <= 0:
@@ -29,9 +42,13 @@ def update_ball(dt):
     
     won=False
     # player 1 collision
+    ball_center=ball_y+(ball_size/2)
     if ball_x <= paddle_width:
-        if ball_y > paddle1_pos and ball_y < paddle1_pos+paddle1_length:
+        if ball_center > paddle1_pos and ball_center < paddle1_pos+paddle1_length:
             ball_speed_x,ball_speed_y = calc_new_speed(ball_y,paddle1_pos,paddle1_length)
+            ball_speed+=0.1
+            last_impact=ball_y
+            impact_sx,impact_sy=ball_speed_x,ball_speed_y
         elif ball_x <= paddle_width-grace:
             won=True
             print("player 2 win")
@@ -39,17 +56,25 @@ def update_ball(dt):
     
     # player 2 collision
     if ball_x >= width-(paddle_width*2):
-        if ball_y > paddle2_pos and ball_y < paddle2_pos+paddle1_length:
+        if ball_center > paddle2_pos and ball_center < paddle2_pos+paddle1_length:
             ball_speed_x,ball_speed_y = calc_new_speed(ball_y,paddle2_pos,paddle2_length,-1)
+            ball_speed+=0.1
+            last_impact=ball_y
+            impact_sx,impact_sy=ball_speed_x,ball_speed_y
         elif ball_x >= width-(paddle_width*2)+grace:
             won=True
             print("player 1 win")
             p1_wins+=1
     
     if won:
-        ball_x,ball_y=ball_start
-        ball_speed_x,ball_speed_y=((randint(0,1)*2)-1)*ball_speed,((randint(0,1)*2)-1)*ball_speed
+        ball_x,ball_y=ball_start-(ball_size/2),random()*height
+        ball_speed=base_ball_speed
+        ball_speed_x,ball_speed_y=((randint(0,1)*2)-1)*ball_speed,0
+        paddle1_pos=(height-paddle1_length)/2
+        paddle2_pos=(height-paddle2_length)/2
         frame_cooldown=30
+        last_impact=ball_y
+        impact_sx,impact_sy=ball_speed_x,ball_speed_y
     else:
         ball_x+=ball_speed_x*dt
         ball_y+=ball_speed_y*dt
@@ -61,32 +86,35 @@ def calc_new_speed(ball_y,paddle_y,paddle_height,x_mult=1):
     normalized=relative_intersect/(paddle_height/2)
     bounce_angle=normalized * max_bounce_angle
     return ball_speed*cos(bounce_angle)*x_mult,ball_speed*-sin(bounce_angle)
-grace=20
+
+grace=25
 
 paddle_width=25
 
-paddle1_pos=0
 paddle1_length=200
+paddle1_pos=(height-paddle1_length)/2
 
-paddle2_pos=0
 paddle2_length=200
+paddle2_pos=(height-paddle2_length)/2
 
 paddle_speed=.4
 
+size_decrease = 10+(ball_size/2) #so the paddle seems smaller then it actually is
+double_size_decrease=size_decrease*2
+
 pygame.init()
+
+line_width,line_height=10,66
+dashed_line=[pygame.rect.Rect((width-line_width)/2,2*n*line_height,line_width,line_height) for n in range(int(width/line_height)+1)]
 
 fps = 60
 fpsClock = pygame.time.Clock()
-
-width, height = 640, 480
-
-ball_start=(width/2,height/2)
 
 screen = pygame.display.set_mode((width, height))
 
 getTicksLastFrame=0
 
-p1_bot=False
+p1_bot=True
 p2_bot=True
 
 p1_wins=0
@@ -114,14 +142,14 @@ while True:
     pressed = pygame.key.get_pressed()
     if not p1_bot:
         if pressed[pygame.K_w] and not pressed[pygame.K_s]:
-            paddle1_pos-=paddle_speed*dt if paddle1_pos > 0 else 0
+            paddle1_pos-=paddle_speed*dt if paddle1_pos+size_decrease > 0 else 0
         elif pressed[pygame.K_s] and not pressed[pygame.K_w]:
-            paddle1_pos+=paddle_speed*dt if paddle1_pos < height-paddle1_length else 0
+            paddle1_pos+=paddle_speed*dt if paddle1_pos-size_decrease < height-paddle1_length else 0
     if not p2_bot:
         if pressed[pygame.K_i] and not pressed[pygame.K_k]:
-            paddle2_pos-=paddle_speed*dt if paddle2_pos > 0 else 0
+            paddle2_pos-=paddle_speed*dt if paddle2_pos+size_decrease > 0 else 0
         elif pressed[pygame.K_k] and not pressed[pygame.K_i]:
-            paddle2_pos+=paddle_speed*dt if paddle1_pos < height-paddle2_length else 0
+            paddle2_pos+=paddle_speed*dt if paddle1_pos-size_decrease < height-paddle2_length else 0
 
 
     # Update.
@@ -133,25 +161,25 @@ while True:
     
     # basic ai
     if p1_bot:
-        half_pos=paddle1_pos+(paddle1_length/2)
-        if half_pos > ball_y and paddle2_pos > 0:
-            paddle1_pos-=paddle_speed*dt
-        elif half_pos < ball_y and paddle1_pos < height-paddle1_length:
-            paddle1_pos+=paddle_speed*dt
+        if ball_speed_x <= 0:
+            paddle1_pos+=match_ball(ball_y,paddle1_pos,paddle1_length,height,paddle_speed)*dt
     if p2_bot:
-        half_pos=paddle2_pos+(paddle2_length/2)
-        if half_pos > ball_y and paddle2_pos > 0:
-            paddle2_pos-=paddle_speed*dt
-        elif half_pos < ball_y and paddle2_pos < height-paddle2_length:
-            paddle2_pos+=paddle_speed*dt
+        if ball_speed_x >= 0:
+            paddle2_pos+=move_to_collision(paddle2_pos,paddle2_length,paddle_speed,last_impact,impact_sx,impact_sy,width-(paddle_width/2) if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
+    
+    # draw dashed line
+    for segment in dashed_line:
+        pygame.draw.rect(screen,(255,255,255),segment)
     
     # draw ball
-    ball_rectangle=pygame.rect.Rect(ball_x,ball_y,ball_size,ball_size)
-    pygame.draw.rect(screen,(255,255,255),ball_rectangle)
+    # ball_rectangle=pygame.rect.Rect(ball_x,ball_y,ball_size,ball_size)
+    # pygame.draw.rect(screen,(255,255,255),ball_rectangle)
+    ball_radius=(ball_size/2)
+    pygame.draw.circle(screen,(255,255,255),(ball_x+ball_radius,ball_y+ball_radius),ball_radius)
     
     # draw paddles
-    paddle1_rect=pygame.rect.Rect(0,paddle1_pos,paddle_width,paddle1_length)
-    paddle2_rect=pygame.rect.Rect(width-paddle_width,paddle2_pos,paddle_width,paddle2_length)
+    paddle1_rect=pygame.rect.Rect(0,paddle1_pos+size_decrease,paddle_width,paddle1_length-double_size_decrease)
+    paddle2_rect=pygame.rect.Rect(width-paddle_width,paddle2_pos+size_decrease,paddle_width,paddle2_length-double_size_decrease)
     pygame.draw.rect(screen,(255,255,255),paddle1_rect)
     pygame.draw.rect(screen,(255,255,255),paddle2_rect)
     
