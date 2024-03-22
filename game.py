@@ -21,8 +21,8 @@ base_ball_speed=.5
 #.5
 ball_speed=base_ball_speed
 ball_speed_x, ball_speed_y = -ball_speed,ball_speed
-speed_increase=0.25
-#.15
+speed_increase=.25
+#.25
 
 last_impact=width/2
 impact_sx,impact_sy=ball_speed_x,ball_speed_y
@@ -120,11 +120,16 @@ getTicksLastFrame=0
 
 p1_bot=False
 p2_bot=True
-ai1=2
+ai1=1
 ai2=1
 
-ai1_center=False
+# if the ai should move to the center when stopped
+ai1_center=True
 ai2_center=True
+
+# if the ai should stop when the ball is moving away
+ai1_stop_turn=True
+ai2_stop_turn=True
 
 p1_wins=0
 p2_wins=0
@@ -170,9 +175,9 @@ while True:
     
     # basic ai
     if p1_bot:
-        if ball_speed_x <= 0:
+        if ball_speed_x <= 0 or not ai1_stop_turn:
             if ai1 == 1:
-                paddle1_pos+=move_to_collision(paddle1_pos,paddle1_length,paddle_speed,last_impact,-impact_sx,impact_sy,width-(paddle_width*0.75) if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
+                paddle1_pos+=move_to_collision(paddle1_pos,paddle1_length,paddle_speed,last_impact,-impact_sx,impact_sy,width-paddle_width+ball_speed if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
             elif ai1 == 2:
                 paddle1_pos+=match_ball(ball_y,paddle1_pos,paddle1_length,height,paddle_speed)*dt
             elif ai1 == 3:
@@ -182,9 +187,9 @@ while True:
         elif ai1_center:
             paddle1_pos+=match_ball(height/2,paddle1_pos,paddle1_length,height,paddle_speed)*dt
     if p2_bot:
-        if ball_speed_x >= 0:
+        if ball_speed_x >= 0 or not ai1_stop_turn:
             if ai2 == 1:
-                paddle2_pos+=move_to_collision(paddle2_pos,paddle2_length,paddle_speed,last_impact,impact_sx,impact_sy,width-(paddle_width*0.75) if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
+                paddle2_pos+=move_to_collision(paddle2_pos,paddle2_length,paddle_speed,last_impact,impact_sx,impact_sy,width-paddle_width+ball_speed  if ball_speed > 0.5 else (width-paddle_width)/2,height)*dt
             elif ai2 == 2:
                 paddle2_pos+=match_ball(ball_y,paddle2_pos,paddle2_length,height,paddle_speed)*dt
             elif ai2 == 3:
