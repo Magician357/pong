@@ -87,6 +87,7 @@ def calc_new_speed(ball_y,paddle_y,paddle_height,x_mult=1):
     center_y=paddle_y+(paddle_height/2)
     relative_intersect=center_y-ball_y 
     normalized=relative_intersect/(paddle_height/2)
+    # print(f"normalized: {normalized}")
     bounce_angle=normalized * max_bounce_angle
     return ball_speed*cos(bounce_angle)*x_mult,ball_speed*-sin(bounce_angle)
 
@@ -116,7 +117,7 @@ fpsClock = pygame.time.Clock()
 
 screen = pygame.display.set_mode((width, height))
 
-getTicksLastFrame=0
+getTicksLastFrame=0     
 
 p1_bot=False
 p2_bot=True
